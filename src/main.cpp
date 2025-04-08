@@ -53,7 +53,8 @@ int main() {
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
 		ImGui::SetNextWindowSize(ImVec2(width, height));
-		ImGui::Begin("Hello, world!");
+		ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
+		ImGui::Begin("Hello, world!",nullptr,windowFlags);
 		ImGui::Text("This is a minimal ImGui + GLFW example.");
 		ImGui::End();
 
