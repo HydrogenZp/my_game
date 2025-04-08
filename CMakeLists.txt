@@ -27,7 +27,7 @@ target_link_libraries(imgui PUBLIC glfw)
 
 add_executable(MyImGuiProject src/main.cpp)
 
-target_link_libraries(MyImGuiProject PRIVATE glfw imgui opengl32)
+target_link_libraries(MyImGuiProject PRIVATE glfw imgui )
 
 target_include_directories(MyImGuiProject PRIVATE
         ${IMGUI_DIR}
