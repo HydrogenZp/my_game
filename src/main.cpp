@@ -42,11 +42,17 @@ int main() {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
+		int width, height;
+		glfwGetWindowSize(window,&width,&height);
+
+
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImVec2(width, height));
 		ImGui::Begin("Hello, world!");
 		ImGui::Text("This is a minimal ImGui + GLFW example.");
 		ImGui::End();
