@@ -22,7 +22,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(1920, 1080, "ImGui + GLFW Demo", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "ImGui + GLFW Demo", NULL, NULL);
     if (!window) return 1;
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
@@ -65,7 +65,7 @@ int main() {
         ImVec2 buttonSize(width * 0.15f, height * 0.15f);
         ImVec2 buttonPos(
             (width - buttonSize.x) / 2.0f,
-            (height - buttonSize.y) / 2.0f + 0.2f * height
+            (height - buttonSize.y) / 2.0f + 0.16f * height
         );
 
         ImGui::SetCursorPos(buttonPos);
