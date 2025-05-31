@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(MyImGuiProject)
+project(MyGame)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,7 @@ target_include_directories(imgui PUBLIC
         ${IMGUI_DIR}
         ${IMGUI_DIR}/backends
         ${CMAKE_SOURCE_DIR}/include/glfw/include
+        ${CMAKE_SOURCE_DIR}/include/utils
 )
 
 # 添加Windows系统库链接
@@ -38,7 +39,10 @@ else()
     target_link_libraries(imgui PUBLIC glfw)
 endif()
 
-add_executable(MyImGuiProject src/main.cpp)
+add_executable(MyImGuiProject src/main.cpp
+        include/utils/Timer.cpp
+        include/utils/Timer.h
+)
 
 target_link_libraries(MyImGuiProject PRIVATE
         imgui
