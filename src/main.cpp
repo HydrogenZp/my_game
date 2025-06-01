@@ -11,6 +11,22 @@
 #include <vector>
 #include <deque>
 #include <random>
+#include <sys/stat.h>
+
+void TextCentered(const char* text) {
+    float winWidth = ImGui::GetWindowSize().x;
+    float textWidth = ImGui::CalcTextSize(text).x;
+
+    // 计算起始位置使文本居中
+    ImGui::SetCursorPosX((winWidth - textWidth) * 0.5f);
+    ImGui::Text("%s", text);
+}
+
+// 检查文件是否存在（替代 filesystem）
+bool fileExists(const char* path) {
+    struct stat buffer;
+    return (stat(path, &buffer) == 0);
+}
 
 // 方向枚举
 enum class Direction {
@@ -57,15 +73,35 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //高DPI适配
+
+    // 高DPI适配
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     float xScale, yScale;
     glfwGetMonitorContentScale(monitor, &xScale, &yScale);
     io.DisplayFramebufferScale = ImVec2(xScale, yScale);
     ImGui::GetStyle().ScaleAllSizes(xScale);
-    io.Fonts->AddFontDefault();
-    io.Fonts->AddFontFromFileTTF("c:/windows/fonts/simhei.ttf", 13.0f, NULL,
-                                 io.Fonts->GetGlyphRangesChineseFull());
+
+    ImFont* font = nullptr;
+    const char* fontPaths[] = {
+        "C:/Windows/Fonts/simhei.ttf",  // Windows
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",  // Linux
+        "/System/Library/Fonts/PingFang.ttc"  // macOS
+    };
+
+    for (const auto& path : fontPaths) {
+        if (fileExists(path)) {
+            font = io.Fonts->AddFontFromFileTTF(path, 16.0f * xScale, nullptr, io.Fonts->GetGlyphRangesChineseFull());
+            if (font) break;
+        }
+    }
+
+    // 如果找不到中文字体，使用默认字体
+    if (!font) {
+        io.Fonts->AddFontDefault();
+        fprintf(stderr, "中文字体加载失败，使用默认字体\n");
+    } else {
+        io.FontDefault = font;
+    }
 
     ImGui::StyleColorsLight();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -75,7 +111,7 @@ int main() {
     const int gridWidth = 40;
     const int gridHeight = 30;
     const int cellSize = 30;
-    ImVec2 gridOrigin(50.0f, 50.0f);
+    ImVec2 gridOrigin(0.0f, 0.0f); // 将在渲染时计算
 
     // 蛇初始化
     std::deque<SnakeSegment> snake;
@@ -235,39 +271,48 @@ int main() {
 
         // 显示FPS和Timer信息
         ImGui::Text("FPS: %d", fps);
-        ImGui::Text("Timer间隔: %.3f秒", gameTimer.getInterval());
+        ImGui::Text("游戏速度: %.3f秒/格", gameTimer.getInterval());
 
         if (gameState == GameState::MENU) {
-            // 主菜单
-            float windowWidth = ImGui::GetWindowWidth();
-            ImVec2 textSize = ImGui::CalcTextSize("贪吃蛇游戏");
-            ImGui::SetCursorPosX((windowWidth - textSize.x) / 2.0f);
-            ImGui::SetCursorPosY(height * 0.2f);
-            ImGui::Text("贪吃蛇游戏");
+            // 主菜单 - 居中显示
+            ImVec2 windowCenter = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetCursorPos(ImVec2(windowCenter.x - 100, windowCenter.y - 100));
 
-            ImVec2 buttonSize(200, 50);
-            ImGui::SetCursorPosX((windowWidth - buttonSize.x) / 2.0f);
-            ImGui::SetCursorPosY(height * 0.5f);
-            if (ImGui::Button("开始游戏", buttonSize)) {
+            ImGui::BeginChild("Menu", ImVec2(200, 200), true);
+            ImGui::Text("贪吃蛇游戏");
+            ImGui::Separator();
+
+            if (ImGui::Button("开始游戏", ImVec2(180, 40))) {
                 gameState = GameState::PLAYING;
             }
+
+            ImGui::Spacing();
+            if (ImGui::Button("退出游戏", ImVec2(180, 40))) {
+                glfwSetWindowShouldClose(window, true);
+            }
+
+            ImGui::EndChild();
         }
         else {
+            // 计算游戏区域位置（居中）
+            float gridWidthPx = gridWidth * cellSize;
+            float gridHeightPx = gridHeight * cellSize;
+            gridOrigin.x = (width - gridWidthPx) * 0.5f;
+            gridOrigin.y = (height - gridHeightPx) * 0.5f + 20; // 向下偏移20像素，为分数显示留出空间
+
             // 绘制游戏区域背景
             ImDrawList* drawList = ImGui::GetWindowDrawList();
 
             // 绘制网格背景
-            float gridWidthPx = gridWidth * cellSize;
-            float gridHeightPx = gridHeight * cellSize;
             drawList->AddRectFilled(
-                ImVec2(gridOrigin.x, gridOrigin.y),
+                gridOrigin,
                 ImVec2(gridOrigin.x + gridWidthPx, gridOrigin.y + gridHeightPx),
                 IM_COL32(50, 50, 50, 255)
             );
 
             // 绘制边界
             drawList->AddRect(
-                ImVec2(gridOrigin.x, gridOrigin.y),
+                gridOrigin,
                 ImVec2(gridOrigin.x + gridWidthPx, gridOrigin.y + gridHeightPx),
                 IM_COL32(255, 255, 255, 255),
                 0.0f, 0, 2.0f
@@ -293,9 +338,19 @@ int main() {
                 );
 
                 // 蛇头使用不同颜色
-                ImU32 color = (i == 0) ?
-                              IM_COL32(220, 50, 50, 255) :  // 红色蛇头
-                              IM_COL32(50, 220, 50, 255);   // 绿色蛇身
+                ImU32 color;
+                if (i == 0) {
+                    color = IM_COL32(220, 50, 50, 255);  // 红色蛇头
+                } else {
+                    // 蛇身使用渐变色
+                    float ratio = static_cast<float>(i) / snake.size();
+                    color = IM_COL32(
+                        50 + ratio * 100,
+                        220 - ratio * 100,
+                        50,
+                        255
+                    );
+                }
 
                 // 留一点边距
                 float margin = 1.0f;
@@ -307,27 +362,46 @@ int main() {
                 );
             }
 
-            // 显示得分
-            ImGui::SetCursorPos(ImVec2(gridOrigin.x, gridOrigin.y - 30));
+            // 显示得分 - 在游戏区域上方居中
+            ImVec2 scorePos(
+                gridOrigin.x + gridWidthPx * 0.5f - ImGui::CalcTextSize("得分: 000   最高分: 000").x * 0.5f,
+                gridOrigin.y - 30
+            );
+            ImGui::SetCursorPos(scorePos);
             ImGui::Text("得分: %d   最高分: %d", score, highScore);
 
             // 游戏暂停或结束时显示相应信息
-            if (gameState == GameState::PAUSED) {
-                ImVec2 center(width / 2, height / 2);
-                ImGui::SetCursorPos(ImVec2(center.x - 100, center.y - 50));
-                ImGui::BeginChild("PauseWindow", ImVec2(200, 100), true);
-                ImGui::Text("游戏已暂停");
-                ImGui::Text("按空格键继续");
-                ImGui::Text("按R键重新开始");
-                ImGui::EndChild();
-            }
-            else if (gameState == GameState::GAME_OVER) {
-                ImVec2 center(width / 2, height / 2);
-                ImGui::SetCursorPos(ImVec2(center.x - 100, center.y - 50));
-                ImGui::BeginChild("GameOverWindow", ImVec2(500, 500), true);
-                ImGui::Text("Game Over!");
-                ImGui::Text("Scores : %d", score);
-                ImGui::Text("Press R to restart");
+            if (gameState == GameState::PAUSED || gameState == GameState::GAME_OVER) {
+                // 半透明背景
+                drawList->AddRectFilled(
+                    ImVec2(0, 0),
+                    ImVec2(width, height),
+                    IM_COL32(0, 0, 0, 0)
+                );
+
+                // 弹窗居中
+                ImVec2 center(width * 0.5f, height * 0.5f);
+                ImVec2 popupSize(300, 200);
+                ImVec2 popupPos(center.x - popupSize.x * 0.5f, center.y - popupSize.y * 0.5f);
+
+                ImGui::SetCursorPos(popupPos);
+                ImGui::BeginChild("StatePopup", popupSize, true, ImGuiWindowFlags_NoMove);
+
+                if (gameState == GameState::PAUSED) {
+                    TextCentered("游戏已暂停");
+                    ImGui::Spacing();
+                    TextCentered("按空格键继续游戏");
+                    TextCentered("按R键重新开始");
+                }
+                else if (gameState == GameState::GAME_OVER) {
+                    TextCentered("游戏结束!");
+                    ImGui::Spacing();
+                    ImGui::Text("得分: %d", score);
+                    ImGui::Text("最高分: %d", highScore);
+                    ImGui::Spacing();
+                    TextCentered("按R键重新开始");
+                }
+
                 ImGui::EndChild();
             }
         }
@@ -346,6 +420,7 @@ int main() {
         glfwSwapBuffers(window);
     }
 
+    //资源回收
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
