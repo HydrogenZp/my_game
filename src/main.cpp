@@ -441,7 +441,7 @@ int main() {
                 drawList->AddRectFilled(
                     ImVec2(0, 0),
                     ImVec2(width, height),
-                    IM_COL32(0, 0, 0, 0)
+                    IM_COL32(255, 255, 255, 200)  // 纯白色背景，透明度200
                 );
 
                 // 弹窗居中
