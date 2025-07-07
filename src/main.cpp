@@ -12,6 +12,7 @@
 #include <deque>
 #include <random>
 #include <sys/stat.h>
+#include <cmath>
 
 void TextCentered(const char* text) {
     float winWidth = ImGui::GetWindowSize().x;
@@ -131,6 +132,10 @@ int main() {
 
     // 计时器初始化 - 控制蛇的移动速度
     Timer gameTimer(0.2f);
+    bool showEatEffect = false;
+    int eatEffectFrames = 0; // 特效帧计数器
+    const int maxEffectFrames = 30; // 特效持续30帧（约0.5秒@60FPS）
+    float eatEffectProgress = 0.0f; // 特效进度 0.0 到 1.0
 
     // 测试计时器的性能
     Timer fpsTimer(1.0f);
@@ -177,6 +182,8 @@ int main() {
                 foodY = 7;
                 score = 0;
                 gameState = GameState::PLAYING;
+                showEatEffect = false; // 重置特效状态
+                eatEffectFrames = 0;
             }
         }
 
@@ -219,6 +226,11 @@ int main() {
                     if (!ateFood) {
                         snake.pop_back();
                     } else {
+                        // 触发吃食物特效
+                        showEatEffect = true;
+                        eatEffectFrames = 0; // 重置帧计数器
+                        eatEffectProgress = 0.0f;
+
                         // 吃到食物，生成新的食物位置
                         bool validPosition;
                         do {
@@ -253,6 +265,17 @@ int main() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        // 更新吃食物特效
+        if (showEatEffect) {
+            eatEffectFrames++;
+            eatEffectProgress = static_cast<float>(eatEffectFrames) / maxEffectFrames;
+            if (eatEffectFrames >= maxEffectFrames) {
+                showEatEffect = false;
+                eatEffectFrames = 0;
+                eatEffectProgress = 0.0f;
+            }
+        }
 
         // 测量FPS - 使用Timer类
         frameCount++;
@@ -337,10 +360,52 @@ int main() {
                     gridOrigin.y + segment.y * cellSize
                 );
 
-                // 蛇头使用不同颜色
+                // 蛇头使用不同颜色和特效
                 ImU32 color;
                 if (i == 0) {
                     color = IM_COL32(220, 50, 50, 255);  // 红色蛇头
+
+                    // 绘制蛇头特效（如果正在显示）
+                    if (showEatEffect) {
+                        // 计算特效半径和透明度
+                        float maxRadius = cellSize * 1.5f;
+                        float currentRadius = maxRadius * eatEffectProgress;
+                        float alpha = (1.0f - eatEffectProgress) * 150; // 渐变透明
+
+                        // 绘制光环特效
+                        ImVec2 center(pos.x + cellSize / 2, pos.y + cellSize / 2);
+
+                        // 外圈光环
+                        drawList->AddCircle(
+                            center,
+                            currentRadius,
+                            IM_COL32(255, 255, 0, (int)alpha), // 黄色光环
+                            0, 3.0f
+                        );
+
+                        // 内圈光环
+                        drawList->AddCircle(
+                            center,
+                            currentRadius * 0.7f,
+                            IM_COL32(255, 200, 0, (int)(alpha * 1.5f)), // 橙色内圈
+                            0, 2.0f
+                        );
+
+                        // 闪烁点效果
+                        for (int j = 0; j < 6; j++) {
+                            float angle = (j * 60.0f + eatEffectProgress * 360.0f) * 3.14159f / 180.0f;
+                            float sparkRadius = currentRadius * 0.8f;
+                            ImVec2 sparkPos(
+                                center.x + cos(angle) * sparkRadius,
+                                center.y + sin(angle) * sparkRadius
+                            );
+                            drawList->AddCircleFilled(
+                                sparkPos,
+                                2.0f,
+                                IM_COL32(255, 255, 255, (int)(alpha * 2))
+                            );
+                        }
+                    }
                 } else {
                     // 蛇身使用渐变色
                     float ratio = static_cast<float>(i) / snake.size();
