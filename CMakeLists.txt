@@ -11,6 +11,7 @@ endif()
 add_subdirectory(include/glfw)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/include/imgui)
+set(MINIAUDIO_DIR ${CMAKE_SOURCE_DIR}/include/miniaudio)
 
 add_library(imgui STATIC
         ${IMGUI_DIR}/imgui.cpp
@@ -20,12 +21,16 @@ add_library(imgui STATIC
         ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
         ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
+add_library(miniaudio STATIC
+        ${MINIAUDIO_DIR}/miniaudio.c
+)
 
 target_include_directories(imgui PUBLIC
         ${IMGUI_DIR}
         ${IMGUI_DIR}/backends
         ${CMAKE_SOURCE_DIR}/include/glfw/include
         ${CMAKE_SOURCE_DIR}/include/utils
+        ${MINIAUDIO_DIR}/
 )
 
 # 添加Windows系统库链接
@@ -39,30 +44,35 @@ else()
     target_link_libraries(imgui PUBLIC glfw)
 endif()
 
-add_executable(MyImGuiProject src/main.cpp
+add_executable(gluttonous_snake src/main.cpp
         include/utils/Timer.cpp
-        include/utils/Timer.h
+        include/game/play_sounds.cpp
 )
 
-target_link_libraries(MyImGuiProject PRIVATE
+# 添加 include 目录，确保头文件能被找到
+target_include_directories(gluttonous_snake PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/utils
+        ${CMAKE_SOURCE_DIR}/include/game
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+        ${MINIAUDIO_DIR}
+)
+
+target_link_libraries(gluttonous_snake PRIVATE
         imgui
         glfw
-        ${CMAKE_THREAD_LIBS_INIT}
+        miniaudio
 )
 
 if (WIN32)
-    target_link_libraries(MyImGuiProject PRIVATE
+    target_link_libraries(gluttonous_snake PRIVATE
             opengl32
             gdi32
     )
 endif()
 
-target_include_directories(MyImGuiProject PRIVATE
-        ${IMGUI_DIR}
-        ${IMGUI_DIR}/backends
-        ${CMAKE_SOURCE_DIR}/include/glfw/include
-)
 
 if (MINGW)
-    target_link_options(MyImGuiProject PRIVATE -mwindows)
+    target_link_options(gluttonous_snake PRIVATE -mwindows)
 endif()
