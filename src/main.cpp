@@ -13,6 +13,26 @@
 #include <random>
 #include <sys/stat.h>
 #include <cmath>
+#include "game/play_sounds.h"
+
+// 音频相关函数
+void initAudio() {
+    if (!SoundManager::initialize()) {
+        fprintf(stderr, "音频初始化失败\n");
+    }
+}
+
+void playGameStartSound() {
+    SoundManager::playSound("sounds/game_start.mp3");
+}
+
+void playGameOverSound() {
+    SoundManager::playSound("sounds/game_over.mp3");
+}
+
+void cleanupAudio() {
+    SoundManager::cleanup();
+}
 
 void TextCentered(const char* text) {
     float winWidth = ImGui::GetWindowSize().x;
@@ -57,6 +77,8 @@ static void glfw_error_callback(int error, const char* description) {
 }
 
 int main() {
+    initAudio();
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -145,6 +167,20 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
+        // 检测游戏状态切换并播放相应音效
+        static GameState lastGameState = GameState::MENU;
+        if (lastGameState != gameState) {
+            if (lastGameState == GameState::MENU && gameState == GameState::PLAYING) {
+                // 从菜单进入游戏，播放开始音效
+                playGameStartSound();
+            }
+            else if (gameState == GameState::GAME_OVER) {
+                // 进入游戏结束状态，播放结束音效
+                playGameOverSound();
+            }
+            lastGameState = gameState;
+        }
+
         // 处理输入
         if (gameState == GameState::PLAYING) {
             if (ImGui::IsKeyPressed(ImGuiKey_UpArrow) && direction != Direction::DOWN) {
@@ -203,7 +239,7 @@ int main() {
                 case Direction::RIGHT: head.x++; break;
             }
 
-            // 检查是否撞墙
+            // 检查是否撞��
             if (head.x < 0 || head.x >= gridWidth || head.y < 0 || head.y >= gridHeight) {
                 gameState = GameState::GAME_OVER;
             } else {
@@ -485,7 +521,8 @@ int main() {
         glfwSwapBuffers(window);
     }
 
-    //资源回收
+    // 资源回收
+    cleanupAudio();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
